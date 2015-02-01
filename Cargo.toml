@@ -3,3 +3,6 @@
 name = "GeneticAlgorithm-Sample"
 version = "0.0.1"
 authors = ["Scott Cooper <scott.cooper2@mail.mcgill.ca>"]
+
+[dependencies.parallel]
+git = "https://github.com/japaric/parallel.rs"

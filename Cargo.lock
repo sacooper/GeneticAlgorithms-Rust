@@ -1,4 +1,12 @@
 [root]
 name = "GeneticAlgorithm-Sample"
 version = "0.0.1"
+dependencies = [
+ "parallel 0.0.0 (git+https://github.com/japaric/parallel.rs)",
+]
+
+[[package]]
+name = "parallel"
+version = "0.0.0"
+source = "git+https://github.com/japaric/parallel.rs#ad3e60d5a3f93934e8a59bd82b4f4c8605ba6132"
 

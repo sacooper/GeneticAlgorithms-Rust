@@ -1,6 +1,9 @@
 #![feature(rand)]
+extern crate parallel;
 use std::rand::{self, Rng};
 use std::num::{Float, Int};
+use std::sync::{Arc, Mutex, Barrier};
+use std::thread::Thread;
 use std::cmp::Ordering;
 
 const MAX : f32 = 10.0; 	// Maximum coefficient
@@ -48,7 +51,7 @@ fn main() {
 
 	let mut rng = rand::thread_rng();
 
-	let mut current : Vec<Gene> = Vec::new();
+	let mut current = Vec::new();
 
 	println!("{}", "Generating initial population...");
 	for _ in 0..size {
@@ -56,54 +59,70 @@ fn main() {
 						(1, rng.gen_range(MIN, MAX)),(0, rng.gen_range(MIN, MAX))]));
 	}
 
+	
 	for i in 0..iterations {
 		println!("Beginning iteration {}", i);
 		let mut old = current.clone();
+		let mut fitted : Arc<Mutex<Vec<Gene>>> = Arc::new(Mutex::new(Vec::new()));
+
 		current.clear();
 		current.shrink_to_fit();
 
-		for _ in 0..200 {
-			let x = rng.gen_range(-100.0, 100.0);
+		let mut tests : Vec<(f32, f32)> = Vec::new();
+
+		for _ in 0..250 {
+			let x = rng.gen_range(-10000.0, 10000.0);
 			let y = f(&solution, x);
-
-			assert!(y == (3.0 * x.powi(3) - x.powi(2) + 5.0) as f32);
-
-			for ref mut g in old.iter_mut() {
-				g.fitness += ((g.compute_at(x) - y)/y).abs();
-			}
+			tests.push((x, y));
 		}
+		
+		let len = old.len();
+
+		let task = |&:chunk : &mut [Gene], _|{
+			for ref mut g in chunk.iter_mut(){
+				for &(x, y) in tests.iter(){
+					g.fitness += ((g.compute_at(x) - y)/y).abs();
+				}
+				fitted.lock().unwrap().push(g.clone());};};
+
+		if (len >= 16){
+			parallel::divide(old.as_mut_slice(), len/8, task);
+		} else {
+			task(old.as_mut_slice(), 0);
+		}
+
+		println!("Completed fitting");
+
+		let mut old = fitted.lock().unwrap();
 
 		old.sort_by(compare);
 
-		let mut last : Option<&mut Gene> = None;
-		let len = old.len();
+		let mut last = None;
 
-		for x in old[0..(len/2)].iter_mut() {
+		for x in old.iter_mut() {
 			match last {
 				None 	   => {last = Some(x)},
 				Some(prev) => {
 					let mut eq1 = prev.eq.clone();
-					let mut eq2 = x.eq.clone();
-					let len1 = eq1.len();
-					let len2 = eq2.len();
-					let mut a = eq1.split_off(2);
-					let mut b = eq2.split_off(2);
-					a.append(&mut eq2);
-					eq1.append(&mut b);
-					b = eq1;
+					let ref eq2 = x.eq;
 
-					for x in a.iter_mut() {
+					for x in eq1.iter_mut() {
+						let (exp, coeff) = *x;
+						for y in eq2.iter(){
+							let (e2, c2) = *y;
+							if exp == e2 {
+								*x = (exp, (coeff + c2) / 2.0);
+								break;
+							} 
+						}
+					}
+
+					for x in eq1.iter_mut() {
 						let (exp, coeff) = *x;
 						*x = (exp, coeff + rng.gen_range(-1.0, 1.0));
 					}
 
-					for x in b.iter_mut() {
-						let (exp, coeff) = *x;
-						*x = (exp, coeff + rng.gen_range(-1.0, 1.0));
-					}
-
-					current.push(Gene::new(a));
-					current.push(Gene::new(b));
+					current.push(Gene::new(eq1));
 
 					last = None
 				}
