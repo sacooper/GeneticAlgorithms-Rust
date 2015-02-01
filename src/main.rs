@@ -36,7 +36,7 @@ impl Gene {
 
 
 fn compare(a : &Gene, b : &Gene) -> Ordering {
-	match a.fitness - b.fitness {
+	match b.fitness - a.fitness {
 		n if n > 0.0 => {Ordering::Greater},
 		n if n < 0.0 => {Ordering::Less},
 		_ 		     => {Ordering::Equal}
@@ -46,8 +46,8 @@ fn compare(a : &Gene, b : &Gene) -> Ordering {
 fn main() {
 	let solution = vec![(3, 3.0), (2, -1.0), (0, 5.0)];		// f(x) = 3x^3 - x^2 + 0x + 5
 
-	let iterations = 22;		// iterations to perform
-	let size : i64 = 2.pow(iterations + 2);
+	let iterations = 1000;		// iterations to perform
+	let size : i32 = 64;
 
 	let mut rng = rand::thread_rng();
 
@@ -81,15 +81,11 @@ fn main() {
 		let task = |&:chunk : &mut [Gene], _|{
 			for ref mut g in chunk.iter_mut(){
 				for &(x, y) in tests.iter(){
-					g.fitness += ((g.compute_at(x) - y)/y).abs();
+					g.fitness += 1.0 / (((g.compute_at(x) - y)/y).abs() as f32);
 				}
 				fitted.lock().unwrap().push(g.clone());};};
 
-		if (len >= 16){
-			parallel::divide(old.as_mut_slice(), len/8, task);
-		} else {
-			task(old.as_mut_slice(), 0);
-		}
+		parallel::divide(old.as_mut_slice(), len/8, task);
 
 		println!("Completed fitting");
 
@@ -98,36 +94,44 @@ fn main() {
 		old.sort_by(compare);
 
 		let mut last = None;
+		let mut sum = old.iter.fold(0, |acc, g|, acc += g.fitness);
 
-		for x in old.iter_mut() {
-			match last {
-				None 	   => {last = Some(x)},
-				Some(prev) => {
-					let mut eq1 = prev.eq.clone();
-					let ref eq2 = x.eq;
 
-					for x in eq1.iter_mut() {
-						let (exp, coeff) = *x;
-						for y in eq2.iter(){
-							let (e2, c2) = *y;
-							if exp == e2 {
-								*x = (exp, (coeff + c2) / 2.0);
-								break;
-							} 
-						}
-					}
+		for _ in 0..size {
 
-					for x in eq1.iter_mut() {
-						let (exp, coeff) = *x;
-						*x = (exp, coeff + rng.gen_range(-1.0, 1.0));
-					}
-
-					current.push(Gene::new(eq1));
-
-					last = None
-				}
-			}
 		}
+
+
+		// for x in old.iter_mut() {
+		// 	match last {
+		// 		None 	   => {last = Some(x)},
+		// 		Some(prev) => {
+		// 			let mut eq1 = prev.eq.clone();
+		// 			let ref eq2 = x.eq;
+
+		// 			for x in eq1.iter_mut() {
+		// 				let (exp, coeff) = *x;
+		// 				for y in eq2.iter(){
+		// 					let (e2, c2) = *y;
+		// 					if exp == e2 {
+		// 						*x = (exp, (coeff + c2) / 2.0);
+		// 						break;
+		// 					} 
+		// 				}
+		// 			}
+		// 			if (rng.gen_range(0, 1000) == 1){
+		// 				for x in eq1.iter_mut() {
+		// 					let (exp, coeff) = *x;
+		// 					*x = (exp, coeff + rng.gen_range(-0.5, 0.5));
+		// 				}	
+		// 			}
+
+		// 			current.push(Gene::new(eq1));
+
+		// 			last = None
+		// 		}
+		// 	}
+		// }
 	}
 
 	for _ in 0..1000{
