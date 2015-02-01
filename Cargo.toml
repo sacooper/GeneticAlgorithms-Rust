@@ -1,6 +1,6 @@
 [package]
 
-name = "GeneticAlgorithm-Sample"
+name = "GeneticAlgorithms"
 version = "0.0.1"
 authors = ["Scott Cooper <scott.cooper2@mail.mcgill.ca>"]
 
